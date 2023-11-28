@@ -841,7 +841,7 @@ int escreve_arq_filme(FILE *filmes, char *indice_prim, char *titulo)
     scanf(" %56[^\n]s", f.titulo_original);
     while (getchar() != '\n')
         ; // Limpar buffer de entrada
-    // strcpy(titulo, f.titulo_original);
+    strcpy(titulo, f.titulo_original);
     printf("\33[95mDiretor (sobrenome, nome): \33[0m");
     scanf(" %40[^\n]s", f.diretor);
     while (getchar() != '\n')
