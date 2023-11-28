@@ -271,8 +271,8 @@ void remover_na_folha(char *chave, node **no, FILE *arquivo)
 
     for (int i = 0; i < (*no)->numKeys; i++)
     {
-        if (!strcmp(chave, (*no)->chaves[i]))
-        {
+        if (!strcmp(chave, (*no)->chaves[i])) // Acha a posicao de remover
+        { // Nao atualiza outros ponteiros - PROBLEMA atualiza apenas a chave
             (*no)->chaves[i][0] = '\0';
             (*no)->numKeys--;
             flag = 1;
@@ -284,7 +284,7 @@ void remover_na_folha(char *chave, node **no, FILE *arquivo)
         }
     }
 
-    if ((*no)->numKeys < ordem / 2)
+    if ((*no)->numKeys < ordem / 2) // Se deu underflow
     {
         node *no_aux, *no_aux_2, *pai;
         int posicao;
@@ -293,7 +293,7 @@ void remover_na_folha(char *chave, node **no, FILE *arquivo)
         ler_pagina(arquivo, &pai, (*no)->parent);
         for (int i = 0; i < pai->numKeys; i++)
         {
-            if (strcmp((*no)->chaves[0], pai->chaves[i]) < 0)
+            if (strcmp((*no)->chaves[0], pai->chaves[i]) < 0) 
             {
                 posicao = i;
                 ler_pagina(arquivo, &no_aux, pai->filhos[i]);
@@ -307,11 +307,11 @@ void remover_na_folha(char *chave, node **no, FILE *arquivo)
             }
         }
 
-        if (no_aux->numKeys > ordem / 2)
+        if (no_aux->numKeys > ordem / 2) // Verifica se pode redistribuir pela esquerda
         {
             redistribuir(no, &no_aux, &pai, arquivo, 0, posicao);
         }
-        else if (no_aux_2->numKeys > ordem / 2)
+        else if (no_aux_2->numKeys > ordem / 2) // Se pode pela direita
         {
             redistribuir(no, &no_aux_2, &pai, arquivo, 1, posicao);
         }
@@ -483,7 +483,7 @@ void split(node **no, FILE *arvore)
     inicializar_no(&novo_no);
     i = (*no)->numKeys / 2;
 
-    for (int j = 0; j < i; j++)
+    for (int j = 0; j < i; j++) // Copia as chaves e dados para o novo no
     {
         strcpy(novo_no->chaves[j], (*no)->chaves[(*no)->numKeys - i + j]);
         (*no)->chaves[j + i][0] = '\0';
@@ -499,10 +499,10 @@ void split(node **no, FILE *arvore)
 
     (*no)->numKeys = (*no)->numKeys - i;
     novo_no->RRN = prox_RRN;
-    prox_RRN++;
+    prox_RRN++; // Atualiza o proximo rrn
     novo_no->parent = (*no)->parent;
     strcpy(promovido, novo_no->chaves[0]);
-    if (!(*no)->folha)
+    if (!(*no)->folha) // Se nao for folha nao pode ter duplicada
     {
         novo_no->next_node = -1;
         (*no)->next_node = -1;
@@ -513,12 +513,12 @@ void split(node **no, FILE *arvore)
     }
     else
     {
-        novo_no->next_node = (*no)->next_node;
+        novo_no->next_node = (*no)->next_node; // Se for folha tem que ligar na lista
         (*no)->next_node = novo_no->RRN;
     }
     escrever_arquivo_arvore(no, arvore, (*no)->RRN);
     escrever_arquivo_arvore(&novo_no, arvore, novo_no->RRN);
-    if (!(*no)->folha)
+    if (!(*no)->folha) 
     {
         node *filho;
         inicializar_no(&filho);
@@ -538,7 +538,7 @@ void split(node **no, FILE *arvore)
 */
 void promove_chave(node **no_esq, node **no_dir, char *chave_promovida, FILE *arvore)
 {
-    if ((*no_esq)->RRN == raiz)
+    if ((*no_esq)->RRN == raiz) // Se for a raiz cria uma nova
     {
         (*no_esq)->parent = (*no_dir)->parent = prox_RRN;
         escrever_arquivo_arvore(no_esq, arvore, (*no_esq)->RRN);
@@ -554,7 +554,7 @@ void promove_chave(node **no_esq, node **no_dir, char *chave_promovida, FILE *ar
         int i;
         i = pai->numKeys - 1;
 
-        while (i >= 0)
+        while (i >= 0) // Acha aonde tem que atualizar o pai
         {
             if (strcmp(chave_promovida, pai->chaves[i]) < 0)
             {
@@ -599,13 +599,13 @@ void promove_chave(node **no_esq, node **no_dir, char *chave_promovida, FILE *ar
 void inserir_no_folha(char *chave, node **no, int RRN_data, FILE *arquivo, int RRN)
 {
     if (RRN < 0)
-        RRN = buscar_folha(no, chave, arquivo, raiz);
+        RRN = buscar_folha(no, chave, arquivo, raiz); // Se nao souber o RRN da folha passa como  -1 e busca a folha
     char promovido[6];
     int i;
     i = (*no)->numKeys - 1;
     if (RRN >= 0)
     {
-        if (i == -1)
+        if (i == -1) // NO caso de ser o primeiro a ser inserido na primeira raiz
         {
             strcpy((*no)->chaves[i + 1], chave);
             (*no)->no_RRN[i + 1] = RRN_data;
