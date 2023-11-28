@@ -55,7 +55,7 @@ typedef struct prim
 void promove_chave(node **no_esq, node **no_dir, char *chave_promovida, FILE *arvore);
 void split(node **no, FILE *arvore);
 
-void inicializar_no(node **no)
+void inicializar_no(node **no) // Malloc no nó da árvore e inicializa oss dados
 {
     *no = malloc(sizeof(node));
     (*no)->RRN = 0;
@@ -73,7 +73,7 @@ void inicializar_no(node **no)
         (*no)->filhos[i] = -1;
 }
 
-void ler_pagina(FILE *arquivo, node **no, int RRN)
+void ler_pagina(FILE *arquivo, node **no, int RRN) // Leitua do nó no arquivo, levando em conta o header
 {
     char buffer[10];
     char teste, teste2;
@@ -202,39 +202,8 @@ FILE *ler_arquivo_arvore(char *nome, node **no, bool *flag_1)
     }
     return arquivo;
 }
-/*
-int buscar_na_arvore(node *no, char *chave, int posicao, FILE *arquivo) // TODO fazer retornar o RRN
-{
-    int RRN_aux;
-    if (no->folha)
-    {
-        for (int i = 0; i < ordem && i < no->numKeys; i++)
-        {
-            if (!strcmp(chave, no->chaves[i]))
-                return no->no_RRN[i];
-        }
 
-        return -1;
-    }
-
-    if (posicao > no->numKeys)
-    {
-        ler_pagina(arquivo, &no, no->no_RRN[posicao]); // Vê se muda o nó global
-        RRN_aux = buscar_na_arvore(no, chave, 0, arquivo);
-    }
-
-    else if ((strcmp(chave, no->chaves[posicao])) < 0)
-    {
-        ler_pagina(arquivo, &no, no->no_RRN[posicao]);
-        RRN_aux = buscar_na_arvore(no, chave, posicao + 1, arquivo);
-    }
-    else
-    {
-        RRN_aux = buscar_na_arvore(no, chave, posicao+1, arquivo);
-    }
-
-    return RRN_aux;
-}*/
+// BUsca a folha verificando seu valor em função do pai e dirigindo pelos ponteiros
 int buscar_folha(node **no, char *chave, FILE *arquivo, int RRN)
 {
     ler_pagina(arquivo, no, RRN);
@@ -256,6 +225,104 @@ int buscar_folha(node **no, char *chave, FILE *arquivo, int RRN)
     return buscar_folha(no, chave, arquivo, (*no)->filhos[i]);
 }
 
+// Tentativa de redistribuição na remoção
+void redistribuir(node **no, node **no_aux, node **pai, FILE *arquivo, int posicao, int pai_filho_posicao)
+{
+    if (!posicao)
+    {
+        strcpy((*no)->chaves[(*no)->numKeys], (*no_aux)->chaves[(*no_aux)->numKeys - 1]);
+        (*no_aux)->chaves[(*no_aux)->numKeys - 1][0] = '\0';
+        (*no_aux)->numKeys--;
+        (*no)->numKeys++;
+        strcpy((*pai)->chaves[pai_filho_posicao], (*no)->chaves[0]);
+    }
+    else
+    {
+        strcpy((*no)->chaves[(*no)->numKeys], (*no_aux)->chaves[0]);
+        (*no_aux)->chaves[0][0] = '\0';
+        for (int i = 0; i < (*no)->numKeys - 1; i++)
+        {
+            strcpy((*no_aux)->chaves[i], (*no_aux)->chaves[i+1]);
+        }
+
+
+        (*no_aux)->numKeys--;
+        (*no)->numKeys++;
+        strcpy((*pai)->chaves[pai_filho_posicao], (*no_aux)->chaves[0]);
+
+       
+    }
+     escrever_arquivo_arvore(no, arquivo, (*no)->RRN);
+    escrever_arquivo_arvore(no_aux, arquivo, (*no_aux)->RRN);
+    escrever_arquivo_arvore(pai, arquivo, (*pai)->RRN);
+}
+
+//void concatenar() {
+
+//}
+
+// Tentativa de remoção no nó folha, faltou fazer a concatenação e achar uma forma de usar isso para o nó pai e recursividade para underflows
+void remover_na_folha(char *chave, node **no, FILE *arquivo) 
+{
+    int RRN = buscar_folha(no, chave, arquivo, raiz);
+    ler_pagina(arquivo, no, RRN);
+    int flag = 0;
+    char aux[6];
+
+    for (int i = 0; i < (*no)->numKeys; i++)
+    {
+        if (!strcmp(chave, (*no)->chaves[i]))
+        {
+            (*no)->chaves[i][0] = '\0';
+            (*no)->numKeys--;
+            flag = 1;
+        }
+        if (flag)
+        {
+            strcpy(aux, (*no)->chaves[i]);
+            strcpy((*no)->chaves[i], (*no)->chaves[i + 1]);
+        }
+    }
+
+    if ((*no)->numKeys < ordem / 2)
+    {
+        node *no_aux, *no_aux_2, *pai;
+        int posicao;
+        inicializar_no(&pai);
+        inicializar_no(&no_aux);
+        ler_pagina(arquivo, &pai, (*no)->parent);
+        for (int i = 0; i < pai->numKeys; i++)
+        {
+            if (strcmp((*no)->chaves[0], pai->chaves[i]) < 0)
+            {
+                posicao = i;
+                ler_pagina(arquivo, &no_aux, pai->filhos[i]);
+                ler_pagina(arquivo, &no_aux_2, pai->filhos[i + 1]);
+            }
+            else if (strcmp((*no)->chaves[0], pai->chaves[i]) > 0 && i == pai->numKeys - 1)
+            {
+                posicao = i;
+                ler_pagina(arquivo, &no_aux_2, pai->filhos[i + 1]);
+                ler_pagina(arquivo, &no_aux, pai->filhos[i]);
+            }
+        }
+
+        if (no_aux->numKeys > ordem / 2)
+        {
+            redistribuir(no, &no_aux, &pai, arquivo, 0, posicao);
+        }
+        else if (no_aux_2->numKeys > ordem / 2)
+        {
+            redistribuir(no, &no_aux_2, &pai, arquivo, 1, posicao);
+        }
+        //else
+        //{
+        //    concatenar();
+        //}
+    }
+}
+
+// Vai para a primeira folha e segue na lista imprimindo os respectivos filmes
 void listar_todos_os_filmes(FILE *arvore, node *no, FILE *arquivo_filmes)
 {
     filme f;
@@ -310,7 +377,12 @@ void listar_todos_os_filmes(FILE *arvore, node *no, FILE *arquivo_filmes)
     }
 }
 
-void listar_adiante(FILE *arquivo, FILE *arquivo_filmes, node *no, char *chave)
+/*
+    Função que busca a chave na árvore B+ e busca a folha correspondente para listar adiante pela lista das folhas.
+    Caso a chave não exista, coloca uma mensagem na tela.
+*/
+
+void listar_adiante(FILE *arquivo, FILE *arquivo_filmes, node *no, char *chave) 
 {
     int rrn = buscar_folha(&no, chave, arquivo, raiz);
     // Chamar de printar
@@ -376,6 +448,10 @@ void listar_adiante(FILE *arquivo, FILE *arquivo_filmes, node *no, char *chave)
     }
 }
 
+/*
+ Função que cria nova raiz quando dá split na raiz.
+ Atualiza os pais dos nós filhos.
+*/
 void criar_nova_raiz(int RRN_filho_esq, int RRN_filho_dir, FILE *arquivo, char *chave_promovida)
 {
     node *no;
@@ -392,6 +468,12 @@ void criar_nova_raiz(int RRN_filho_esq, int RRN_filho_dir, FILE *arquivo, char *
     escrever_arquivo_arvore(&no, arquivo, no->RRN);
 }
 
+
+/*
+    Função para o split, copia metade das chaves e dados de um nó e atualiza.
+    Verifica se é na folha ou não para tratamento correto.
+    Chama a função de promoção.
+*/
 void split(node **no, FILE *arvore)
 {
     node *novo_no;
@@ -436,10 +518,12 @@ void split(node **no, FILE *arvore)
     }
     escrever_arquivo_arvore(no, arvore, (*no)->RRN);
     escrever_arquivo_arvore(&novo_no, arvore, novo_no->RRN);
-    if (!(*no)->folha) {
+    if (!(*no)->folha)
+    {
         node *filho;
         inicializar_no(&filho);
-        for (int h = 0; h <= novo_no->numKeys; h ++) {
+        for (int h = 0; h <= novo_no->numKeys; h++)
+        {
             ler_pagina(arvore, &filho, novo_no->filhos[h]);
             filho->parent = novo_no->RRN;
             escrever_arquivo_arvore(&filho, arvore, filho->RRN);
@@ -448,6 +532,10 @@ void split(node **no, FILE *arvore)
     promove_chave(no, &novo_no, promovido, arvore);
 }
 
+/*
+    Faz a promoção da chave pegando a primeira chave do nó direito.
+    Atualiza os nós pai também.
+*/
 void promove_chave(node **no_esq, node **no_dir, char *chave_promovida, FILE *arvore)
 {
     if ((*no_esq)->RRN == raiz)
@@ -505,6 +593,9 @@ void promove_chave(node **no_esq, node **no_dir, char *chave_promovida, FILE *ar
     }
 }
 
+/*
+    Função de inserção na folha, apenas insere e verifica se precisa ou não de split.
+*/
 void inserir_no_folha(char *chave, node **no, int RRN_data, FILE *arquivo, int RRN)
 {
     if (RRN < 0)
